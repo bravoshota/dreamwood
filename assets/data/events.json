@@ -1,0 +1,30 @@
+[
+  {
+    "title": "DreamWood Autumn Gathering",
+    "date": "2025-10-31T19:00:00+04:00",
+    "location": "Kiketi Forest, Georgia",
+    "poster": "assets/images/posters/autumn-2025.jpg",
+    "url": "assets/videos/autumn-2025-teaser.mp4"
+  },
+  {
+    "title": "Winter Fires",
+    "date": "2026-01-18T18:30:00+04:00",
+    "location": "Igoeti Pines",
+    "poster": "assets/images/posters/winter-fires.jpg",
+    "url": "https://youtu.be/XXXXXXXXXXX"
+  },
+  {
+    "title": "Equinox 2024",
+    "date": "2024-09-22T19:00:00+04:00",
+    "location": "Kiketi Forest",
+    "poster": "assets/images/posters/equinox-2024.jpg",
+    "url": "assets/videos/equinox-2024-recap.mp4"
+  },
+  {
+    "title": "Night Lights 2024",
+    "date": "2024-06-08T20:00:00+04:00",
+    "location": "Tsalka",
+    "poster": "assets/images/posters/night-lights-2024.jpg",
+    "url": "https://vimeo.com/XXXXXXXX"
+  }
+]

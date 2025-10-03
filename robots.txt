@@ -1,0 +1,28 @@
+User-agent: *
+Disallow:
+
+Sitemap: https://www.dreamwoodofficial.com/sitemap.xml
+
+User-agent: FacebookExternalHit
+Allow: /
+
+User-agent: Facebot
+Allow: /
+
+User-agent: Twitterbot
+Allow: /
+
+User-agent: LinkedInBot
+Allow: /
+
+User-agent: WhatsApp
+Allow: /
+
+User-agent: Slackbot-LinkExpanding
+Allow: /
+
+User-agent: TelegramBot
+Allow: /
+
+User-agent: discordbot
+Allow: /
