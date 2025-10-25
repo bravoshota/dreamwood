@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dioskurio • Links</title>
+  <meta name="robots" content="noindex,nofollow" />
+  <style>
+    :root { --bg:#0b0b0b; --card:#131313; --border:#1e1e1e; --fg:#f6f6f6; --muted:#b7b7b7; }
+    * { box-sizing: border-box; }
+    html,body { margin:0; background:var(--bg); color:var(--fg); font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+    .wrap { min-height:100svh; display:grid; place-items:center; padding:18px; }
+    .card { width:100%; max-width:560px; background:var(--card); border:1px solid var(--border);
+            border-radius:22px; overflow:hidden; box-shadow:0 10px 30px rgba(0,0,0,.35); }
+    .hero { width:100%; aspect-ratio:1/1; background:#000 center/cover no-repeat; }
+    .content { padding:18px; }
+    h1 { margin:6px 0 2px; font-size:22px; letter-spacing:.2px; }
+    .sub { margin:0 0 10px; color:var(--muted); font-size:14px; }
+    .status { margin:8px 0 14px; color:var(--muted); font-size:13px; }
+    .btns { display:grid; gap:10px; grid-template-columns:1fr; }
+    .btn {
+      appearance: none;
+      border: 0;
+      border-radius: 16px;
+      height: 64px; /* taller buttons */
+      font-weight: 800;
+      color: #fff;
+      cursor: pointer;
+      width: 100%;
+      font-size: clamp(18px, 3vw, 22px); /* bigger text */
+      letter-spacing: 0.4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px; /* more spacing between icon and text */
+      transition: transform 0.1s ease, filter 0.2s ease;
+    }
+    .btn:active {
+      transform: scale(0.97);
+      filter: brightness(0.9);
+    }
+    .btn span.icon {
+      font-size: clamp(28px, 4vw, 36px);
+      line-height: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .btn.ig img {
+      width: clamp(38px, 5vw, 46px);
+      height: auto;
+    }
+    .sp   { background:linear-gradient(180deg,#1db954,#0f7e31); }
+    .yt   { background:linear-gradient(180deg,#ff0000,#b00000); }
+    .sc   { background:linear-gradient(180deg,#ff6a2f,#d24a10); }
+    .am   { background:linear-gradient(180deg,#fc3c44,#c21e24); }
+    .ig   { background:linear-gradient(90deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888); }
+    .small { font-size:12px; color:var(--muted); text-align:center; margin-top:10px; }
+    @media (min-width:520px){ .btn { height:54px; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <!-- Upload your artwork next to this file as poster.png OR change the URL below -->
+      <div class="hero" id="hero" style="background-image:url('poster.png');"></div>
+
+      <div class="content">
+        <h1>Sorrow Inside Sun Outside</h1>
+        <p class="sub">Dioskurio</p>
+
+        <div class="btns">
+          <button class="btn sp" id="btnSpotify">
+            <span class="icon">🎧</span>
+            Open in Spotify
+          </button>
+          <button class="btn yt" id="btnYouTube">
+            <span class="icon">
+              <!-- YouTube SVG -->
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512" width="34" height="34" fill="white">
+                <path d="M549.655 124.083c-6.281-23.65-24.787-42.276-48.284-48.597C458.423 64 288 64 288 64S117.578 64 74.629 75.486c-23.497 6.321-42.003 24.947-48.284 48.597-11.523 43.304-11.523 133.72-11.523 133.72s0 90.416 11.523 133.72c6.281 23.65 24.787 42.276 48.284 48.597C117.578 448 288 448 288 448s170.423 0 213.371-11.486c23.497-6.321 42.003-24.947 48.284-48.597 11.523-43.304 11.523-133.72 11.523-133.72s0-90.416-11.523-133.72zM232 336V176l142.857 80L232 336z"/>
+              </svg>
+            </span>
+            Watch on YouTube
+          </button>
+          <button class="btn sc" id="btnSoundCloud">
+            <span class="icon">☁️</span>
+            Listen on SoundCloud
+          </button>
+          <button class="btn am" id="btnApple">
+            <span class="icon"></span>
+            Listen on Apple Music
+          </button>
+          <button class="btn ig" id="btnInstagram">
+            <span class="icon">
+              <img src="icons/instagram.svg" alt="Instagram" />
+            </span>
+            Follow on Instagram
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+(function () {
+  // ====== ENV ======
+  const ua = navigator.userAgent;
+  const isIOS = /iPhone|iPad|iPod/i.test(ua);
+  const isAndroid = /Android/i.test(ua);
+  const isMac = /Macintosh/i.test(ua);
+  const isWin = /Windows/i.test(ua);
+  const mobile = isIOS || isAndroid;
+
+  // ====== UI ======
+  const statusEl = document.getElementById('status');
+  function setStatus(msg){ if(statusEl) statusEl.textContent = msg; }
+  function resetToIdle(){ setStatus('Choose where to listen ↓'); }
+
+  // ====== LINKS (same as before) ======
+  const LINKS = {
+    spotify:    { name:'spotify',    app:'spotify:track:3DkqD9nNLmhkZI0nlqa7L6', web:'https://open.spotify.com/track/3DkqD9nNLmhkZI0nlqa7L6', tryAppOnMobile:true,  tryAppOnDesktop:true,  fallbackMs:1500 },
+    youtube:    { name:'youtube',    app:'youtube://www.youtube.com/watch?v=nuSvp2BF-ps', web:'https://www.youtube.com/watch?v=nuSvp2BF-ps',       tryAppOnMobile:true,  tryAppOnDesktop:false, fallbackMs:700  },
+    soundcloud: { name:'soundcloud', app:null,                                           web:'https://soundcloud.com/dioskurio/sorrow-inside-sun-outside', tryAppOnMobile:false, tryAppOnDesktop:false, fallbackMs:0    },
+    applemusic: { name:'applemusic', app:null,                                           web:'https://music.apple.com/us/album/1846007392?i=1846007393',   tryAppOnMobile:false, tryAppOnDesktop:false, fallbackMs:0    },
+    instagram:  { name:'instagram',  app:'instagram://user?username=dioskurio',         web:'https://www.instagram.com/dioskurio',                     tryAppOnMobile:true,  tryAppOnDesktop:false, fallbackMs:600  },
+  };
+
+  // ====== Logging (same as your logger) ======
+  const LOG_URL = new URL('log.php', location.href).href;
+  function log(event, dest, extra){
+    const payload = Object.assign({
+      time: new Date().toISOString(),
+      event, dest
+    }, extra || {});
+    const data = JSON.stringify(payload);
+    if (navigator.sendBeacon) navigator.sendBeacon(LOG_URL, data);
+    else fetch(LOG_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body:data, keepalive:true }).catch(()=>{});
+  }
+
+  // ====== Core opener with “app-opened” handling ======
+  function openTarget(key){
+    const t = LINKS[key];
+    if(!t) return;
+
+    // show processing state
+    setStatus(`Opening ${t.name.charAt(0).toUpperCase()+t.name.slice(1)}…`);
+
+    const tryApp = (mobile ? t.tryAppOnMobile : t.tryAppOnDesktop) && t.app;
+    const appUrl = t.app, webUrl = t.web;
+    let fallbackTimer = null;
+    let appLikelyOpened = false;
+
+    // Remember last interaction to suppress any later fallbacks
+    const OPEN_FLAG = `dw_opened_${t.name}`;
+
+    function cancelFallback(){
+      if(fallbackTimer){ clearTimeout(fallbackTimer); fallbackTimer = null; }
+    }
+    function markOpened(){
+      appLikelyOpened = true;
+      try { sessionStorage.setItem(OPEN_FLAG, '1'); } catch {}
+      cancelFallback();
+      // revert UI so if user returns and taps Cancel on the old prompt, we stay idle
+      resetToIdle();
+      detachListeners();
+    }
+    function detachListeners(){
+      window.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('blur', onBlur);
+      window.removeEventListener('pagehide', onBlur);
+      window.removeEventListener('beforeunload', onBlur);
+    }
+    function onVis(){ if(document.visibilityState === 'hidden') markOpened(); }
+    function onBlur(){ markOpened(); }
+
+    // listen once; if the app takes over we’ll get hidden/blur soon
+    window.addEventListener('visibilitychange', onVis, {once:true});
+    window.addEventListener('blur', onBlur, {once:true});
+    window.addEventListener('pagehide', onBlur, {once:true});
+    window.addEventListener('beforeunload', onBlur, {once:true});
+
+    // Log intent
+    log('click', tryApp ? `${t.name}_app` : `${t.name}_web`, { target:t.name });
+
+    // Try app first if configured; otherwise go web directly
+    if(tryApp){
+      location.href = appUrl;
+
+      // Only run fallback if we never left the page
+      if (webUrl && t.fallbackMs > 0){
+        fallbackTimer = setTimeout(() => {
+          // Fallback only if the app did NOT open and page is still foreground
+          if (!appLikelyOpened && document.visibilityState === 'visible') {
+            log('fallback', `${t.name}_web`);
+            location.href = webUrl;
+          }
+        }, t.fallbackMs);
+      }
+    } else {
+      location.href = webUrl;
+    }
+  }
+
+  // ====== When user returns later: keep page in idle state if an app had opened ======
+  window.addEventListener('focus', () => {
+    // If any service opened earlier this session, don’t auto-do anything.
+    for (const k in LINKS){
+      try {
+        if (sessionStorage.getItem(`dw_opened_${LINKS[k].name}`) === '1') {
+          resetToIdle();
+          break;
+        }
+      } catch {}
+    }
+  });
+
+  // ====== Wire buttons ======
+  document.getElementById('btnSpotify')   ?.addEventListener('click', () => openTarget('spotify'));
+  document.getElementById('btnYouTube')   ?.addEventListener('click', () => openTarget('youtube'));
+  document.getElementById('btnSoundCloud')?.addEventListener('click', () => openTarget('soundcloud'));
+  document.getElementById('btnApple')     ?.addEventListener('click', () => openTarget('applemusic'));
+  document.getElementById('btnInstagram') ?.addEventListener('click', () => openTarget('instagram'));
+})();
+</script>
+</body>
+</html>
