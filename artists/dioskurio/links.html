@@ -112,6 +112,8 @@
   const isAndroid = /Android/i.test(ua);
   const isMac = /Macintosh/i.test(ua);
   const isWin = /Windows/i.test(ua);
+  const isChrome = /Chrome\/\d+/i.test(ua) && /Android/i.test(ua);
+  const isInApp = /(Instagram|FBAN|FBAV|FB_IAB|Line|Twitter|TikTok|Snapchat|Pinterest)/i.test(ua);
   const mobile = isIOS || isAndroid;
 
   // ====== UI ======
@@ -121,11 +123,39 @@
 
   // ====== LINKS (same as before) ======
   const LINKS = {
-    spotify:    { name:'spotify',    app:'spotify:track:3DkqD9nNLmhkZI0nlqa7L6', web:'https://open.spotify.com/track/3DkqD9nNLmhkZI0nlqa7L6', tryAppOnMobile:true,  tryAppOnDesktop:true,  fallbackMs:1500 },
-    youtube:    { name:'youtube',    app:'youtube://www.youtube.com/watch?v=nuSvp2BF-ps', web:'https://www.youtube.com/watch?v=nuSvp2BF-ps',       tryAppOnMobile:true,  tryAppOnDesktop:false, fallbackMs:700  },
-    soundcloud: { name:'soundcloud', app:null,                                           web:'https://soundcloud.com/dioskurio/sorrow-inside-sun-outside', tryAppOnMobile:false, tryAppOnDesktop:false, fallbackMs:0    },
-    applemusic: { name:'applemusic', app:null,                                           web:'https://music.apple.com/us/album/1846007392?i=1846007393',   tryAppOnMobile:false, tryAppOnDesktop:false, fallbackMs:0    },
-    instagram:  { name:'instagram',  app:'instagram://user?username=dioskurio',         web:'https://www.instagram.com/dioskurio',                     tryAppOnMobile:true,  tryAppOnDesktop:false, fallbackMs:600  },
+    spotify: {
+      name:'spotify',
+      app:'spotify:track:3DkqD9nNLmhkZI0nlqa7L6',
+      web:'https://open.spotify.com/track/3DkqD9nNLmhkZI0nlqa7L6',
+      intent:'intent://open.spotify.com/track/3DkqD9nNLmhkZI0nlqa7L6#Intent;scheme=https;package=com.spotify.music;S.browser_fallback_url=https%3A%2F%2Fopen.spotify.com%2Ftrack%2F3DkqD9nNLmhkZI0nlqa7L6;end',
+      tryAppOnMobile:true,  tryAppOnDesktop:true,  fallbackMs:1500
+    },
+    youtube: {
+      name:'youtube',
+      app:'youtube://www.youtube.com/watch?v=nuSvp2BF-ps',
+      web:'https://www.youtube.com/watch?v=nuSvp2BF-ps',
+      intent:'intent://www.youtube.com/watch?v=nuSvp2BF-ps#Intent;scheme=https;package=com.google.android.youtube;S.browser_fallback_url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DnuSvp2BF-ps;end',
+      tryAppOnMobile:true,  tryAppOnDesktop:false, fallbackMs:700
+    },
+    soundcloud: {
+      name:'soundcloud',
+      app:null,
+      web:'https://soundcloud.com/dioskurio/sorrow-inside-sun-outside',
+      tryAppOnMobile:false, tryAppOnDesktop:false, fallbackMs:0
+    },
+    applemusic: {
+      name:'applemusic',
+      app:null,
+      web:'https://music.apple.com/us/album/1846007392?i=1846007393',
+      tryAppOnMobile:false, tryAppOnDesktop:false, fallbackMs:0
+    },
+    instagram: {
+      name:'instagram',
+      app:'instagram://user?username=dioskurio',
+      web:'https://www.instagram.com/dioskurio',
+      intent:'intent://instagram.com/_u/dioskurio#Intent;scheme=https;package=com.instagram.android;S.browser_fallback_url=https%3A%2F%2Fwww.instagram.com%2Fdioskurio;end',
+      tryAppOnMobile:true,  tryAppOnDesktop:false, fallbackMs:600
+    }
   };
 
   // ====== Logging (same as your logger) ======
@@ -186,13 +216,23 @@
     log('click', tryApp ? `${t.name}_app` : `${t.name}_web`, { target:t.name });
 
     // Try app first if configured; otherwise go web directly
-    if(tryApp){
-      location.href = appUrl;
+    if (tryApp) {
+      if (isAndroid) {
+        if (isChrome && !isInApp && t.intent) {
+          // Let Chrome handle app or fallback-to-web via intent:// (no Play Store)
+          location.href = t.intent;
+          return; // do not run our own web fallback timer here
+        } else {
+          // In-app browsers: go https directly (App Links may still open app)
+          location.href = webUrl;
+          return;
+        }
+      }
 
-      // Only run fallback if we never left the page
-      if (webUrl && t.fallbackMs > 0){
+      // Non-Android (iOS/desktop): keep your existing scheme + timer fallback
+      location.href = appUrl;
+      if (webUrl && t.fallbackMs > 0) {
         fallbackTimer = setTimeout(() => {
-          // Fallback only if the app did NOT open and page is still foreground
           if (!appLikelyOpened && document.visibilityState === 'visible') {
             log('fallback', `${t.name}_web`);
             location.href = webUrl;
