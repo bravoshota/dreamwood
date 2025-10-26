@@ -106,27 +106,37 @@
 
   <script>
 (function () {
-  // ====== ENV ======
+  // ====== ENV / DETECT ======
   const ua = navigator.userAgent;
-  const isIOS = /iPhone|iPad|iPod/i.test(ua);
-  const isAndroid = /Android/i.test(ua);
-  const isMac = /Macintosh/i.test(ua);
-  const isWin = /Windows/i.test(ua);
-  const isChrome = /Chrome\/\d+/i.test(ua) && /Android/i.test(ua);
-  const isInApp = /(Instagram|FBAN|FBAV|FB_IAB|Line|Twitter|TikTok|Snapchat|Pinterest)/i.test(ua);
-  const mobile = isIOS || isAndroid;
+  const isIOS        = /iPhone|iPad|iPod/i.test(ua);
+  const isAndroid    = /Android/i.test(ua);
+  const isMac        = /Macintosh/i.test(ua);
+  const isWin        = /Windows/i.test(ua);
+  const mobile       = isIOS || isAndroid;
 
-  // ====== UI ======
+  const isChrome     = /Chrome\/\d+/i.test(ua);
+  const isIOSChrome  = /CriOS/i.test(ua);           // Chrome on iOS
+  const isInApp      = /(Instagram|FBAN|FBAV|FB_IAB|Line|Twitter|TikTok|Snapchat|Pinterest)/i.test(ua);
+
+  function getIOSMajor() {
+    const m = ua.match(/OS (\d+)[._]/) || ua.match(/CPU (?:iPhone )?OS (\d+)[._]/);
+    return m ? parseInt(m[1], 10) : null;
+  }
+  const iosMajor = getIOSMajor();
+  const isiOSLegacy = isIOS && (iosMajor && iosMajor <= 12);  // older iOS that shows "address invalid" on schemes
+
+  // ====== UI (optional) ======
   const statusEl = document.getElementById('status');
-  function setStatus(msg){ if(statusEl) statusEl.textContent = msg; }
-  function resetToIdle(){ setStatus('Choose where to listen ↓'); }
+  const setStatus = (m)=>{ if(statusEl) statusEl.textContent = m; };
+  const resetToIdle = ()=> setStatus('Choose where to listen ↓');
 
-  // ====== LINKS (same as before) ======
+  // ====== LINKS ======
   const LINKS = {
     spotify: {
       name:'spotify',
       app:'spotify:track:3DkqD9nNLmhkZI0nlqa7L6',
       web:'https://open.spotify.com/track/3DkqD9nNLmhkZI0nlqa7L6',
+      // Android Chrome intent with browser fallback (prevents Play Store jump)
       intent:'intent://open.spotify.com/track/3DkqD9nNLmhkZI0nlqa7L6#Intent;scheme=https;package=com.spotify.music;S.browser_fallback_url=https%3A%2F%2Fopen.spotify.com%2Ftrack%2F3DkqD9nNLmhkZI0nlqa7L6;end',
       tryAppOnMobile:true,  tryAppOnDesktop:true,  fallbackMs:1500
     },
@@ -158,42 +168,39 @@
     }
   };
 
-  // ====== Logging (same as your logger) ======
+  // ====== LOGGING (as before) ======
   const LOG_URL = new URL('log.php', location.href).href;
   function log(event, dest, extra){
-    const payload = Object.assign({
-      time: new Date().toISOString(),
-      event, dest
-    }, extra || {});
+    const payload = Object.assign({ time:new Date().toISOString(), event, dest }, extra||{});
     const data = JSON.stringify(payload);
     if (navigator.sendBeacon) navigator.sendBeacon(LOG_URL, data);
     else fetch(LOG_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body:data, keepalive:true }).catch(()=>{});
   }
 
-  // ====== Core opener with “app-opened” handling ======
+  // ====== CORE OPEN (click only) ======
   function openTarget(key){
-    const t = LINKS[key];
-    if(!t) return;
-
-    // show processing state
+    const t = LINKS[key]; if(!t) return;
     setStatus(`Opening ${t.name.charAt(0).toUpperCase()+t.name.slice(1)}…`);
 
-    const tryApp = (mobile ? t.tryAppOnMobile : t.tryAppOnDesktop) && t.app;
+    // Decide whether to try app first
+    let tryApp = (mobile ? t.tryAppOnMobile : t.tryAppOnDesktop) && t.app;
     const appUrl = t.app, webUrl = t.web;
+
+    // a) iOS legacy (<=12) OR iOS in-app (Instagram/FB etc.) → avoid schemes
+    if ((isiOSLegacy || (isIOS && isInApp)) && (t.name==='spotify' || t.name==='instagram' || t.name==='youtube')) {
+      tryApp = false; // use https directly to avoid "address invalid" or blocked schemes
+    }
+
     let fallbackTimer = null;
     let appLikelyOpened = false;
 
-    // Remember last interaction to suppress any later fallbacks
     const OPEN_FLAG = `dw_opened_${t.name}`;
 
-    function cancelFallback(){
-      if(fallbackTimer){ clearTimeout(fallbackTimer); fallbackTimer = null; }
-    }
+    function cancelFallback(){ if(fallbackTimer){ clearTimeout(fallbackTimer); fallbackTimer=null; } }
     function markOpened(){
       appLikelyOpened = true;
       try { sessionStorage.setItem(OPEN_FLAG, '1'); } catch {}
       cancelFallback();
-      // revert UI so if user returns and taps Cancel on the old prompt, we stay idle
       resetToIdle();
       detachListeners();
     }
@@ -206,32 +213,58 @@
     function onVis(){ if(document.visibilityState === 'hidden') markOpened(); }
     function onBlur(){ markOpened(); }
 
-    // listen once; if the app takes over we’ll get hidden/blur soon
     window.addEventListener('visibilitychange', onVis, {once:true});
     window.addEventListener('blur', onBlur, {once:true});
     window.addEventListener('pagehide', onBlur, {once:true});
     window.addEventListener('beforeunload', onBlur, {once:true});
 
-    // Log intent
     log('click', tryApp ? `${t.name}_app` : `${t.name}_web`, { target:t.name });
 
-    // Try app first if configured; otherwise go web directly
-    if (tryApp) {
-      if (isAndroid) {
-        if (isChrome && !isInApp && t.intent) {
-          // Let Chrome handle app or fallback-to-web via intent:// (no Play Store)
-          location.href = t.intent;
-          return; // do not run our own web fallback timer here
-        } else {
-          // In-app browsers: go https directly (App Links may still open app)
-          location.href = webUrl;
-          return;
-        }
+    // === ANDROID ===
+    if (isAndroid && tryApp) {
+      if (isChrome && !isInApp && t.intent) {
+        // Chrome → use intent:// with browser_fallback_url (no Play Store bounce)
+        location.href = t.intent;
+        return; // do not add our own timer here
+      } else {
+        // In-app browsers on Android → https (App Links may still open app)
+        location.href = webUrl;
+        return;
       }
+    }
 
-      // Non-Android (iOS/desktop): keep your existing scheme + timer fallback
+    // === iOS (Safari = good with fallback; Chrome on iOS = no auto-fallback) ===
+    if (isIOS && tryApp) {
       location.href = appUrl;
-      if (webUrl && t.fallbackMs > 0) {
+
+      if (isIOSChrome) {
+        // Chrome on iOS: DON'T auto-fallback to web (prevents parallel redirect)
+        const ms = t.fallbackMs || 1500;
+        setTimeout(() => {
+          if (!appLikelyOpened && document.visibilityState === 'visible') {
+            setStatus(`If nothing opened, tap the ${t.name} button again to use the web version.`);
+          }
+        }, ms);
+        return;
+      } else {
+        // Safari on iOS: allow timed fallback to web if still visible
+        if (webUrl && t.fallbackMs > 0){
+          fallbackTimer = setTimeout(() => {
+            if (!appLikelyOpened && document.visibilityState === 'visible') {
+              log('fallback', `${t.name}_web`);
+              location.href = webUrl;
+            }
+          }, t.fallbackMs);
+        }
+        return;
+      }
+    }
+
+    // === DESKTOP or when not trying app ===
+    if (tryApp) {
+      // Desktop app schemes are hit-or-miss; keep your previous behavior
+      location.href = appUrl;
+      if (webUrl && t.fallbackMs > 0){
         fallbackTimer = setTimeout(() => {
           if (!appLikelyOpened && document.visibilityState === 'visible') {
             log('fallback', `${t.name}_web`);
@@ -244,9 +277,8 @@
     }
   }
 
-  // ====== When user returns later: keep page in idle state if an app had opened ======
+  // Return-to-page idle
   window.addEventListener('focus', () => {
-    // If any service opened earlier this session, don’t auto-do anything.
     for (const k in LINKS){
       try {
         if (sessionStorage.getItem(`dw_opened_${LINKS[k].name}`) === '1') {
@@ -257,7 +289,7 @@
     }
   });
 
-  // ====== Wire buttons ======
+  // Wire buttons
   document.getElementById('btnSpotify')   ?.addEventListener('click', () => openTarget('spotify'));
   document.getElementById('btnYouTube')   ?.addEventListener('click', () => openTarget('youtube'));
   document.getElementById('btnSoundCloud')?.addEventListener('click', () => openTarget('soundcloud'));
