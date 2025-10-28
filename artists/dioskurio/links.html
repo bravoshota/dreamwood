@@ -169,12 +169,49 @@
   };
 
   // ====== LOGGING (as before) ======
-  const LOG_URL = new URL('log.php', location.href).href;
-  function log(event, dest, extra){
-    const payload = Object.assign({ time:new Date().toISOString(), event, dest }, extra||{});
+  const LOG_URL = 'log.php';
+  function log(event, dest, extra) {
+    const qp = new URLSearchParams(location.search);
+    let src = '';
+
+    // Ads (instagram/facebook/messenger). configure ads with utm_source={{site_source_name}}
+    if (qp.has('utm_source')) {
+      src = qp.get('utm_source').toLowerCase();
+    }
+    // Bio links: use origin=ig_bio / fb_bio
+    else if (qp.has('origin')) {
+      src = qp.get('origin');
+    }
+    // Organic posts: plain links with fbclid (added by Meta)
+    else if (qp.has('fbclid')) {
+      src = 'fbclid';
+    }
+    // Everything else: empty string
+    else {
+      src = '';
+    }
+
+    // === FINAL PAYLOAD ===
+    const payload = Object.assign({
+      time: new Date().toISOString(),
+      event,
+      dest,
+      src,   // exactly matches your mapping
+    }, extra || {});
+
     const data = JSON.stringify(payload);
-    if (navigator.sendBeacon) navigator.sendBeacon(LOG_URL, data);
-    else fetch(LOG_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body:data, keepalive:true }).catch(()=>{});
+
+    // === SEND LOG ===
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon(LOG_URL, data);
+    } else {
+      fetch(LOG_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: data,
+        keepalive: true
+      }).catch(() => {});
+    }
   }
 
   // ====== CORE OPEN (click only) ======

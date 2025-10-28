@@ -13,7 +13,7 @@ if (!is_array($data)) { $data = []; }
 
 // Fill basics if missing
 if (empty($data['time']))   { $data['time'] = gmdate('c'); }
-if (empty($data['src'])) {
+if (!array_key_exists('src', $data)) {
   $ref = isset($_SERVER['HTTP_REFERER']) ? strtolower($_SERVER['HTTP_REFERER']) : '';
   if (strpos($ref,'instagram')!==false)      $data['src']='instagram';
   elseif (strpos($ref,'facebook')!==false)   $data['src']='facebook';
