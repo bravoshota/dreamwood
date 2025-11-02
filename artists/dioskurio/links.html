@@ -110,20 +110,11 @@
   const ua = navigator.userAgent;
   const isIOS        = /iPhone|iPad|iPod/i.test(ua);
   const isAndroid    = /Android/i.test(ua);
-  const isMac        = /Macintosh/i.test(ua);
-  const isWin        = /Windows/i.test(ua);
   const mobile       = isIOS || isAndroid;
 
   const isChrome     = /Chrome\/\d+/i.test(ua);
   const isIOSChrome  = /CriOS/i.test(ua);           // Chrome on iOS
   const isInApp      = /(Instagram|FBAN|FBAV|FB_IAB|Line|Twitter|TikTok|Snapchat|Pinterest)/i.test(ua);
-
-  function getIOSMajor() {
-    const m = ua.match(/OS (\d+)[._]/) || ua.match(/CPU (?:iPhone )?OS (\d+)[._]/);
-    return m ? parseInt(m[1], 10) : null;
-  }
-  const iosMajor = getIOSMajor();
-  const isiOSLegacy = isIOS && (iosMajor && iosMajor <= 12);  // older iOS that shows "address invalid" on schemes
 
   // ====== UI (optional) ======
   const statusEl = document.getElementById('status');
@@ -214,6 +205,8 @@
     }
   }
 
+  log('view','page');
+
   // ====== CORE OPEN (click only) ======
   function openTarget(key){
     const t = LINKS[key]; if(!t) return;
@@ -224,7 +217,7 @@
     const appUrl = t.app, webUrl = t.web;
 
     // a) iOS legacy (<=12) OR iOS in-app (Instagram/FB etc.) → avoid schemes
-    if ((isiOSLegacy || (isIOS && isInApp)) && (t.name==='spotify' || t.name==='instagram' || t.name==='youtube')) {
+    if (isIOS && (t.name==='spotify' || t.name==='instagram' || t.name==='youtube' || t.name==='applemusic')) {
       tryApp = false; // use https directly to avoid "address invalid" or blocked schemes
     }
 
