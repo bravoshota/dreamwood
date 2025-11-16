@@ -6,12 +6,13 @@
   <title>Dioskurio • Links</title>
   <meta name="robots" content="noindex,nofollow" />
   <style>
-    :root { --bg:#0b0b0b; --card:#131313; --border:#1e1e1e; --fg:#f6f6f6; --muted:#b7b7b7; }
+    :root { --bg:#fafafa; --card:#fff; --border:#e5e5e5; --fg:#111; --muted:#666; }
     * { box-sizing: border-box; }
     html,body { margin:0; background:var(--bg); color:var(--fg); font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
     .wrap { min-height:100svh; display:grid; place-items:center; padding:18px; }
+    .card { box-shadow:0 6px 18px rgba(0,0,0,0.08); }
     .card { width:100%; max-width:560px; background:var(--card); border:1px solid var(--border);
-            border-radius:22px; overflow:hidden; box-shadow:0 10px 30px rgba(0,0,0,.35); }
+            border-radius:22px; overflow:hidden; box-shadow: 0 4px 20px rgba(0,0,0,.08); }
     .hero { width:100%; aspect-ratio:1/1; background:#000 center/cover no-repeat; }
     .content { padding:18px; }
     h1 { margin:6px 0 2px; font-size:22px; letter-spacing:.2px; }
@@ -46,11 +47,17 @@
       align-items: center;
       justify-content: center;
     }
+    .btn span.icon img {
+      width: clamp(26px, 3vw, 32px);
+      height: auto;
+      display: block;
+    }
     .btn.ig img {
       width: clamp(38px, 5vw, 46px);
       height: auto;
     }
-    .sp   { background:linear-gradient(180deg,#1db954,#0f7e31); }
+    .tk   { background:linear-gradient(180deg,#3d3d3d,#000000); }
+    .sp   { background:linear-gradient(180deg,#1db954,#073b14); }
     .yt   { background:linear-gradient(180deg,#ff0000,#b00000); }
     .sc   { background:linear-gradient(180deg,#ff6a2f,#d24a10); }
     .am   { background:linear-gradient(180deg,#fc3c44,#c21e24); }
@@ -66,14 +73,20 @@
       <div class="hero" id="hero" style="background-image:url('poster.png');"></div>
 
       <div class="content">
-        <h1>Sorrow Inside Sun Outside</h1>
+        <h1>NEW RELEASE: Sorrow Inside Sun Outside</h1>
         <p class="sub">DIOSKURIO</p>
         <br>
         <p class="status" id="status">Choose where to listen ↓</p>
 
         <div class="btns">
+          <button class="btn tk" id="btnTkt">
+            <span class="icon">🔊</span>
+            29.11 King David (TKT.GE)
+          </button>
           <button class="btn sp" id="btnSpotify">
-            <span class="icon">🎧</span>
+            <span class="icon">
+              <img src="icons/spotify.svg" alt="Spotify" />
+            </span>
             Open in Spotify
           </button>
           <button class="btn yt" id="btnYouTube">
@@ -123,6 +136,12 @@
 
   // ====== LINKS ======
   const LINKS = {
+    tkt: {
+      name:'tkt',
+      app:null,
+      web:'https://tkt.ge/show/27516/glimmer-nights-behind-the-veil',
+      tryAppOnMobile:false,  tryAppOnDesktop:false,  fallbackMs:0
+    },
     spotify: {
       name:'spotify',
       app:'spotify:track:3DkqD9nNLmhkZI0nlqa7L6',
@@ -190,24 +209,32 @@
       src,   // exactly matches your mapping
     }, extra || {});
 
-    const data = JSON.stringify(payload);
-
-    // === SEND LOG ===
-    if (navigator.sendBeacon) {
-      navigator.sendBeacon(LOG_URL, data);
-    } else {
-      fetch(LOG_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: data,
-        keepalive: true
-      }).catch(() => {});
-    }
+   const data = JSON.stringify(payload);
+   // 1) Try beacon
+   let sent = false;
+   try { sent = !!navigator.sendBeacon && navigator.sendBeacon(LOG_URL, data); } catch {}
+   if (sent) return;
+   // 2) Try keepalive fetch
+   try {
+     fetch(LOG_URL, {
+       method: 'POST',
+       headers: { 'Content-Type': 'application/json' },
+       body: data,
+       keepalive: true
+     }).catch(() => {});
+     return;
+   } catch {}
+   // 3) Last-ditch: image pixel GET (survives hard navigations in many webviews)
+   try {
+     const img = new Image();
+     img.src = LOG_URL + '?b=' + encodeURIComponent(btoa(data)) + '&t=' + Date.now();
+   } catch {}
   }
 
   log('view','page');
 
   // ====== CORE OPEN (click only) ======
+  let lastClickDest = null;
   function openTarget(key){
     const t = LINKS[key]; if(!t) return;
     setStatus(`Opening ${t.name.charAt(0).toUpperCase()+t.name.slice(1)}…`);
@@ -248,24 +275,28 @@
     window.addEventListener('pagehide', onBlur, {once:true});
     window.addEventListener('beforeunload', onBlur, {once:true});
 
+    lastClickDest = t.name;
     log('click', tryApp ? `${t.name}_app` : `${t.name}_web`, { target:t.name });
+
+    // Small, cross-webview breath so the log leaves the page
+    const goSoon = (fn) => { setTimeout(fn, 50); }; // 50–60 ms is plenty and not perceivable
 
     // === ANDROID ===
     if (isAndroid && tryApp) {
       if (isChrome && !isInApp && t.intent) {
         // Chrome → use intent:// with browser_fallback_url (no Play Store bounce)
-        location.href = t.intent;
+        goSoon(() => location.href = t.intent);
         return; // do not add our own timer here
       } else {
         // In-app browsers on Android → https (App Links may still open app)
-        location.href = webUrl;
+        goSoon(() => location.href = webUrl);
         return;
       }
     }
 
     // === iOS (Safari = good with fallback; Chrome on iOS = no auto-fallback) ===
     if (isIOS && tryApp) {
-      location.href = appUrl;
+      goSoon(() => location.href = appUrl);
 
       if (isIOSChrome) {
         // Chrome on iOS: DON'T auto-fallback to web (prevents parallel redirect)
@@ -293,7 +324,7 @@
     // === DESKTOP or when not trying app ===
     if (tryApp) {
       // Desktop app schemes are hit-or-miss; keep your previous behavior
-      location.href = appUrl;
+      goSoon(() => location.href = appUrl);
       if (webUrl && t.fallbackMs > 0){
         fallbackTimer = setTimeout(() => {
           if (!appLikelyOpened && document.visibilityState === 'visible') {
@@ -303,9 +334,16 @@
         }, t.fallbackMs);
       }
     } else {
-      location.href = webUrl;
+      goSoon(() => location.href = webUrl);
     }
   }
+
+  // When we leave the page (hidden), send an "exit" crumb in case the click log died
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden' && lastClickDest) {
+      log('exit', lastClickDest);
+    }
+  });
 
   // Return-to-page idle
   window.addEventListener('focus', () => {
@@ -320,6 +358,7 @@
   });
 
   // Wire buttons
+  document.getElementById('btnTkt')   ?.addEventListener('click', () => openTarget('tkt'));
   document.getElementById('btnSpotify')   ?.addEventListener('click', () => openTarget('spotify'));
   document.getElementById('btnYouTube')   ?.addEventListener('click', () => openTarget('youtube'));
   document.getElementById('btnSoundCloud')?.addEventListener('click', () => openTarget('soundcloud'));
